@@ -1,0 +1,27 @@
+# Define where the VisualCortex servers are that will receive images
+servers:
+  server_node_0:
+    LOCALHOST: 127.0.0.1
+    PORT: 9898
+    IMAGE_QUEUE: IMAGE_QUEUE
+    BUFFER_SIZE: 4096
+    TIME_OUT: 50
+    SENSOR_COUNT: 3
+    EXTERNAL: 0.0.0.0
+
+#  server_node_1:
+#    LOCALHOST: 127.0.0.1
+#    PORT: 9899
+#    BUFFER_SIZE: 4096
+#    TIME_OUT: 50
+#    SENSOR_COUNT: 3
+#    EXTERNAL: 0.0.0.0
+
+# Define the local session
+local:
+  # modes can be cortex or eyeball
+  mode: cortex
+  # if eyeball, out address(network ip) is required
+  outaddr: 127.0.0.1
+
+
