@@ -31,6 +31,7 @@ Required Libraries: https://github.com/opencv/opencv, https://github.com/yaml/py
 import yaml
 import os
 import VisualCortex
+import Eyeball
 import threading
 
 
@@ -40,6 +41,7 @@ class Eyeballs:
         self.local_setup = {}
         self.load_yaml(yaml_file_path)
         self.cortex_list = []
+        self.eyeball_list = []
 
     def load_yaml(self, yaml_file_path):
         try:
@@ -74,15 +76,23 @@ class Eyeballs:
             print(f"Error parsing YAML: {e}")
             # raise
 
-    def start_cortex(self, server_node_config):
-        new_cortex = VisualCortex(server_node_config)
-        thread = threading.Thread(target=new_cortex.run, args=(server_node_config,))
-        self.cortex_thread_list.append(thread)
+    def start_cortex(self, server):
+        new_cortex = VisualCortex.VisualCortex(self.server_node_config[server])
+        thread = threading.Thread(target=new_cortex.run, args=(self.server_node_config[0],))
+        self.cortex_list.append(thread)
+
+    def get_cortex(self, server):
+        new_cortex = VisualCortex.VisualCortex(self.server_node_config[server])
+        return new_cortex
+
+    def get_eyeball(self, server):
+        new_eyeball = Eyeball.Eyeball(self.server_node_config[server])
+        return new_eyeball
 
     def start_eyeball(self, server_node_config):
-        new_cortex = VisualCortex(server_node_config)
-        thread = threading.Thread(target=new_cortex.run, args=(server_node_config,))
-        self.cortex_thread_list.append(thread)
+        new_eyeball = Eyeball(server_node_config)
+        thread = threading.Thread(target=new_eyeball.run, args=(server_node_config,))
+        self.eyeball_list.append(thread)
 
     def get_config(self):
         return self.server_node_config

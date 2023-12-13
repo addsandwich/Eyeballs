@@ -3,11 +3,14 @@ servers:
   server_node_0:
     LOCALHOST: 127.0.0.1
     PORT: 9898
-    IMAGE_QUEUE: IMAGE_QUEUE
+    C2PORT: 9999
+    IMAGE_QUEUE: 30
     BUFFER_SIZE: 4096
-    TIME_OUT: 50
+    V_BUFFER_SIZE: 40960
+    TIME_OUT: 300
     SENSOR_COUNT: 3
-    EXTERNAL: 0.0.0.0
+    EXTERNAL: 192.168.10.203
+
 
 #  server_node_1:
 #    LOCALHOST: 127.0.0.1
@@ -20,8 +23,8 @@ servers:
 # Define the local session
 local:
   # modes can be cortex or eyeball
-  mode: cortex
+  MODE: cortex
   # if eyeball, out address(network ip) is required
-  outaddr: 127.0.0.1
+  OUTADDR: 192.168.10.203
 
 

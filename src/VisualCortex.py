@@ -52,17 +52,18 @@ class VisualCortex:
         self.TIME_OUT = config_dict.get('TIME_OUT', 300)
         self.IMAGE_QUEUE = config_dict.get('IMAGE_QUEUE', 30)
         self.SENSOR_COUNT = config_dict.get('SENSOR_COUNT', 5)
-        self.External = config_dict.get('External', '127.0.0.1')
-        self.lock = threading.Lock()
-        self.thread_limit = 3
-        self.thread_count = 0
+        self.EXTERNAL = config_dict.get('EXTERNAL', '127.0.0.1')
+        self.LOCK = threading.Lock()
+        self.THREAD_LIMIT = 3
+        self.THREAD_COUNT = 0
+        self.FULL_STOP = 0
 
-        if self.External == '0.0.0.0':
-            self.External = self.LOCALHOST
+        if self.EXTERNAL == '0.0.0.0':
+            self.EXTERNAL = self.LOCALHOST
 
         self.connections = []
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind((self.External, self.PORT))
+        self.server_socket.bind((self.EXTERNAL, self.PORT))
         self.server_socket.listen(self.SENSOR_COUNT)
         self.image_streams = []
 
@@ -93,8 +94,9 @@ class VisualCortex:
 
     def run(self):
         try:
-            while True:
+            while not self.FULL_STOP:
                 conn, addr = self.server_socket.accept()
+                print(f"Server Listening at{addr}")
                 if len(self.connections) < self.SENSOR_COUNT:
                     thread = threading.Thread(target=self.handle_connection, args=(conn,))
                     thread.start()
@@ -121,21 +123,21 @@ class VisualCortex:
         fps = 0
         start = time.time()
 
-        self.lock.acquire()
-        if self.thread_count < self.thread_limit:
-            self.thread_count += 1
+        self.LOCK.acquire()
+        if self.THREAD_COUNT < self.THREAD_LIMIT:
+            self.THREAD_COUNT += 1
             thread = threading.Thread(target=self.video_intake_thread, args=(data_queue,))
             thread.start()
         else:
             print("Thread limit reached. Video Processing not Started.")
 
-        if self.thread_count < self.thread_limit:
-            self.thread_count += 1
+        if self.THREAD_COUNT < self.THREAD_LIMIT:
+            self.THREAD_COUNT += 1
             thread = threading.Thread(target=self.process_video, args=(data_queue, frame_queue))
             thread.start()
         else:
             print("Thread limit reached. Video Processing not Started.")
-        self.lock.release()
+        self.LOCK.release()
 
         while True:
             for i in range(x_chunks*y_chunks):
@@ -146,13 +148,14 @@ class VisualCortex:
                           ranges[frame[0]][0][0]:
                           ranges[frame[0]][0][1]] = frame[1]
 
-            if count_time < 10:
-                count_time += 1
-            else:
-                end = time.time()
-                fps = math.trunc(count_time / (end - start))
-                count_time = 0
-                start = end
+                    if count_time < 10:
+                        count_time += 1
+                    else:
+                        end = time.time()
+                        fps = math.trunc(count_time / x_chunks*y_chunks / (end - start))
+                        count_time = 0
+                        start = end
+
             cv2.putText(image, f"{fps}", (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             addr = 'stuff'
             cv2.imshow(f"Received {addr}", image)
@@ -167,10 +170,10 @@ class VisualCortex:
         # connection info
         meta_size = struct.calcsize("Q")  # Size of the payload
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        server_socket.bind((self.External, self.PORT))
+        server_socket.bind((self.EXTERNAL, self.PORT))
         data = b""
 
-        print(f"[LISTENING] Server is listening on {self.External}:{self.PORT}")
+        print(f"[LISTENING] Server is listening on {self.EXTERNAL}:{self.PORT}")
 
         while True:
             try:
@@ -206,9 +209,9 @@ class VisualCortex:
             except Exception as e:
                 print(f"[ERROR] {e}")
 
-        self.lock.acquire()
-        self.thread_count -= 1
-        self.lock.release()
+        self.LOCK.acquire()
+        self.THREAD_COUNT -= 1
+        self.LOCK.release()
 
     def process_video(self, data_queue, frame_queue):
         while True:
@@ -217,9 +220,9 @@ class VisualCortex:
             frame = frame.reshape(frame.shape[0], 1)
             frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
             frame_queue.put((index, frame))
-        self.lock.acquire()
-        self.thread_count -= 1
-        self.lock.release()
+        self.LOCK.acquire()
+        self.THREAD_COUNT -= 1
+        self.LOCK.release()
 
     def close_connections(self):
         for thread in self.connections:

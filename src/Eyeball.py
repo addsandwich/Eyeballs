@@ -41,21 +41,21 @@ from EyeUtils import DataFrameWork as dfw
 
 
 class Eyeball:
-    def __init__(self, config_dict, external_interface_dict):
+    def __init__(self, config_dict):
         self.LOCALHOST = config_dict.get('LOCALHOST', '127.0.0.1')
         self.PORT = config_dict.get('PORT', 9898)
         self.C2PORT = config_dict.get('C2PORT', 9999)
         self.BUFFER_SIZE = config_dict.get('BUFFER_SIZE', 1024*4)
         self.V_BUFFER_SIZE = config_dict.get('V_BUFFER_SIZE', 1024*32)
         self.TIME_OUT = config_dict.get('TIME_OUT', 10)
-        self.EXTERNAL = external_interface_dict.get('EXTERNAL', '127.0.0.1')
+        self.EXTERNAL = config_dict.get('EXTERNAL', '127.0.0.1')
         self.IMAGE_QUEUE = config_dict.get('IMAGE_QUEUE', 30)
-        self.thread_limit = 4
-        self.thread_count = 0
+        self.THREAD_LIMIT = 4
+        self.THREAD_COUNT = 0
         self.OUT_QUEUE = queue.Queue(self.IMAGE_QUEUE)
         self.PROCESS_QUEUE = queue.Queue(self.IMAGE_QUEUE)
         self.FULL_STOP = 0
-        self.lock = threading.Lock()
+        self.LOCK = threading.Lock()
 
         if self.EXTERNAL == '0.0.0.0':
             self.EXTERNAL = self.LOCALHOST
@@ -93,6 +93,8 @@ class Eyeball:
             while not self.FULL_STOP:
                 # upon successful connection
                 vid = cv2.VideoCapture(0)
+                vid.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                vid.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
                 while vid.isOpened():
                     ret_f, cap = vid.read()
                     #print(cap.shape)
@@ -133,11 +135,11 @@ class Eyeball:
 
     def run(self):
         try:
-            #while not msvcrt.kbhit():  # Loop until a key is pressed
-            message_to_send = {'command': 'sample_command', 'value': 42}
-            self.send_data(message_to_send)
-            self.receive_response()  # Receive and process response
-            time.sleep(3)
+            while not self.FULL_STOP:
+                message_to_send = {'command': 'sample_command', 'value': 42}
+                self.send_data(message_to_send)
+                self.receive_response()  # Receive and process response
+                time.sleep(3)
         except KeyboardInterrupt:
             pass
         finally:
