@@ -79,11 +79,10 @@ class Eyeballs:
         thread = threading.Thread(target=new_cortex.run, args=(server_node_config,))
         self.cortex_thread_list.append(thread)
 
-    def start_cortex(self, server_node_config):
+    def start_eyeball(self, server_node_config):
         new_cortex = VisualCortex(server_node_config)
         thread = threading.Thread(target=new_cortex.run, args=(server_node_config,))
         self.cortex_thread_list.append(thread)
-
 
     def get_config(self):
         return self.server_node_config

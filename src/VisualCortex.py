@@ -39,17 +39,23 @@ import time
 import math
 import cv2
 import numpy
+from EyeUtils import DataFrameWork as dfw
 
 
 class VisualCortex:
     def __init__(self, config_dict):
         self.LOCALHOST = config_dict.get('LOCALHOST', '127.0.0.1')
         self.PORT = config_dict.get('PORT', 9898)
+        self.C2PORT = config_dict.get('C2PORT', 9999)
         self.BUFFER_SIZE = config_dict.get('BUFFER_SIZE', 1024)
+        self.V_BUFFER_SIZE = config_dict.get('V_BUFFER_SIZE', 1024 * 40)
         self.TIME_OUT = config_dict.get('TIME_OUT', 300)
         self.IMAGE_QUEUE = config_dict.get('IMAGE_QUEUE', 30)
         self.SENSOR_COUNT = config_dict.get('SENSOR_COUNT', 5)
         self.External = config_dict.get('External', '127.0.0.1')
+        self.lock = threading.Lock()
+        self.thread_limit = 3
+        self.thread_count = 0
 
         if self.External == '0.0.0.0':
             self.External = self.LOCALHOST
@@ -59,6 +65,7 @@ class VisualCortex:
         self.server_socket.bind((self.External, self.PORT))
         self.server_socket.listen(self.SENSOR_COUNT)
         self.image_streams = []
+
 
     def cmd_loader(self, conn, data):
         try:
@@ -99,102 +106,120 @@ class VisualCortex:
             print("Server stopped.")
 
     def get_video_stream(self):
-        # connection info
-        host_ip = '127.0.0.1'
-        port = 9999
-        buffer_size = 1024 * 32
-        payload_size = struct.calcsize("Q")  # Size of the payload
         # image info
-        x_chunks = 1
-        y_chunks = 3
+        x_chunks = 2
+        y_chunks = 1
         width = 480
         height = 360
         image = numpy.ones((height, width, 3), dtype=numpy.uint8)
-        #stuff
-        frame_queue = []
-        data = b""
-        ranges = self.calc_ranges(x_chunks, y_chunks, width, height)
+        # stuff
+        frame_queue = Queue(self.IMAGE_QUEUE)
+        data_queue = Queue(self.IMAGE_QUEUE)
+        ranges = dfw.DataFrameWork.calc_ranges(x_chunks, y_chunks, width, height)
         # time processing
         count_time = 0
         fps = 0
         start = time.time()
 
+        self.lock.acquire()
+        if self.thread_count < self.thread_limit:
+            self.thread_count += 1
+            thread = threading.Thread(target=self.video_intake_thread, args=(data_queue,))
+            thread.start()
+        else:
+            print("Thread limit reached. Video Processing not Started.")
+
+        if self.thread_count < self.thread_limit:
+            self.thread_count += 1
+            thread = threading.Thread(target=self.process_video, args=(data_queue, frame_queue))
+            thread.start()
+        else:
+            print("Thread limit reached. Video Processing not Started.")
+        self.lock.release()
+
+        while True:
+            for i in range(x_chunks*y_chunks):
+                if not frame_queue.empty() > 0:
+                    frame = frame_queue.get()
+                    image[ranges[frame[0]][1][0]:
+                          ranges[frame[0]][1][1],
+                          ranges[frame[0]][0][0]:
+                          ranges[frame[0]][0][1]] = frame[1]
+
+            if count_time < 10:
+                count_time += 1
+            else:
+                end = time.time()
+                fps = math.trunc(count_time / (end - start))
+                count_time = 0
+                start = end
+            cv2.putText(image, f"{fps}", (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            addr = 'stuff'
+            cv2.imshow(f"Received {addr}", image)
+
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+
+        cv2.destroyAllWindows()
+
+    def video_intake_thread(self, data_queue):
+        # connection info
+        meta_size = struct.calcsize("Q")  # Size of the payload
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        server_socket.bind((host_ip, port))
+        server_socket.bind((self.External, self.PORT))
+        data = b""
 
-        print(f"[LISTENING] Server is listening on {host_ip}:{port}")
+        print(f"[LISTENING] Server is listening on {self.External}:{self.PORT}")
 
-
-        counter = 0
         while True:
             try:
-                while len(data) < payload_size:
+                while len(data) < meta_size:
                     # receiving the packets and appending them into the data
-                    packet, addr = server_socket.recvfrom(buffer_size)  # 4k of byte buffer
+                    packet, addr = server_socket.recvfrom(self.V_BUFFER_SIZE)  # 4k of byte buffer
                     if not packet:
                         break
+                    # print(packet)
                     # adding packet to data
                     data += packet
                     # first 8 bytes contain size of packet message
-                packed_msg_size = data[:payload_size]
+                packed_msg_size = data[:meta_size]
+                # print(packed_msg_size)
                 # rest of data contains video frame
-                data = data[payload_size:]
+                data = data[meta_size:]
                 msg_size = struct.unpack("Q", packed_msg_size)[0]
 
                 while len(data) < msg_size:
-                    data += server_socket.recvfrom(buffer_size)
+                    data += server_socket.recvfrom(self.V_BUFFER_SIZE)
 
                 if msg_size and len(data) >= msg_size:
-                    packed_index = data[:payload_size]
+                    packed_index = data[:meta_size]
                     index_img = struct.unpack("Q", packed_index)[0]
-                    data = data[payload_size:]
+                    data = data[meta_size:]
                     frame_data = data[:msg_size]
                     data = data[msg_size:]
-                    frame = numpy.frombuffer(frame_data, dtype=numpy.uint8)
-                    frame = frame.reshape(frame.shape[0], 1)
-                    frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-                    #frame = cv2.flip(frame, 1)
-                    #print(ranges[index_img])
+                    data_queue.put((index_img, frame_data))
 
-                    image[ranges[index_img][1][0]:
-                          ranges[index_img][1][1], ranges[index_img][0][0]:ranges[index_img][0][1]] = frame
-                    #print(frame.dtype)
-                    #print(image.dtype)
-
-                    if (count_time < 10):
-                        count_time += 1
-                    else:
-                        end = time.time()
-                        fps = math.trunc(count_time / (end - start))
-                        count_time = 0
-                        start = end
-                    cv2.putText(image, f"{fps}", (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-                    cv2.imshow(f"Received {addr}", image)
-
-                    key = cv2.waitKey(1) & 0xFF
-                    if key == ord('q'):
-                        break
 
             except KeyboardInterrupt:
                 break
             except Exception as e:
                 print(f"[ERROR] {e}")
 
-        cv2.destroyAllWindows()
-    def process_video(self):
-        pass
+        self.lock.acquire()
+        self.thread_count -= 1
+        self.lock.release()
 
-    def calc_ranges(self, x_chunks, y_chunks, frame_width, frame_height):
-        ranges = []
-        for x in range(x_chunks):
-            for y in range(y_chunks):
-                x_coord = int(frame_width / x_chunks)
-                y_coord = int(frame_height / y_chunks)
-                x_coord = (x_coord * x, x_coord * (x + 1))
-                y_coord = (y_coord * y, y_coord * (y + 1))
-                ranges.append([x_coord, y_coord])
-        return ranges
+    def process_video(self, data_queue, frame_queue):
+        while True:
+            index, temp = data_queue.get()
+            frame = numpy.frombuffer(temp, dtype=numpy.uint8)
+            frame = frame.reshape(frame.shape[0], 1)
+            frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
+            frame_queue.put((index, frame))
+        self.lock.acquire()
+        self.thread_count -= 1
+        self.lock.release()
 
     def close_connections(self):
         for thread in self.connections:
@@ -213,6 +238,6 @@ if __name__ == "__main__":
         'External': '192.168.10.203'  # Change to '127.0.0.1' or other IP if needed
     }
 
-eyeballs = VisualCortex(config)
+#eyeballs = VisualCortex(config)
 #eyeballs.run()
-eyeballs.get_video_stream()
+#eyeballs.get_video_stream()

@@ -29,27 +29,36 @@ underlying program as an image frame
 Libraries: https://github.com/opencv/opencv
 
 """
-
+import queue
 import socket
-import pickle
+import threading
 import time
 import cv2
 import pickle
 import struct
 import math
-import numpy
+from EyeUtils import DataFrameWork as dfw
 
 
 class Eyeball:
     def __init__(self, config_dict, external_interface_dict):
         self.LOCALHOST = config_dict.get('LOCALHOST', '127.0.0.1')
         self.PORT = config_dict.get('PORT', 9898)
+        self.C2PORT = config_dict.get('C2PORT', 9999)
         self.BUFFER_SIZE = config_dict.get('BUFFER_SIZE', 1024*4)
+        self.V_BUFFER_SIZE = config_dict.get('V_BUFFER_SIZE', 1024*32)
         self.TIME_OUT = config_dict.get('TIME_OUT', 10)
-        self.External = external_interface_dict.get('External', '127.0.0.1')
+        self.EXTERNAL = external_interface_dict.get('EXTERNAL', '127.0.0.1')
+        self.IMAGE_QUEUE = config_dict.get('IMAGE_QUEUE', 30)
+        self.thread_limit = 4
+        self.thread_count = 0
+        self.OUT_QUEUE = queue.Queue(self.IMAGE_QUEUE)
+        self.PROCESS_QUEUE = queue.Queue(self.IMAGE_QUEUE)
+        self.FULL_STOP = 0
+        self.lock = threading.Lock()
 
-        if self.External == '0.0.0.0':
-            self.External = self.LOCALHOST
+        if self.EXTERNAL == '0.0.0.0':
+            self.EXTERNAL = self.LOCALHOST
 
         #self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         #self.client_socket.connect((self.External, self.PORT))
@@ -72,50 +81,55 @@ class Eyeball:
 
     def get_video(self):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Using UDP
-        host_ip = '127.0.0.1'
-        port = 9999
-        max_size = 1024*20
-        x_chunks = 1
-        y_chunks = 3
+        x_chunks = 2
+        y_chunks = 1
         width = 480
         height = 360
-        data_size = max_size-struct.calcsize("Q")*2
+        count_time = 0
+        start = time.time()
+        ranges = dfw.DataFrameWork.calc_ranges(x_chunks, y_chunks, width, height)
+
         try:
-            while True:
+            while not self.FULL_STOP:
                 # upon successful connection
                 vid = cv2.VideoCapture(0)
                 while vid.isOpened():
                     ret_f, cap = vid.read()
+                    #print(cap.shape)
                     image = cv2.resize(cap, (width, height))
-                    #print(image)
+
                     if ret_f:
-
                         i = 0
-                        buffs = []
-                        for x in range(x_chunks):
-                            for y in range(y_chunks):
-                                x_coord = int(width/x_chunks)
-                                y_coord = int(height/y_chunks)
-                                x_coord = (x_coord*x, x_coord*(x+1))
-                                y_coord = (y_coord*y, y_coord*(y+1))
-                                temp = image[y_coord[0]:y_coord[1], x_coord[0]:x_coord[1]]
 
-                                ret_j, buffer = cv2.imencode(".jpg", temp)
-                                buffer = buffer.tobytes()
-                                # pack the size
-                                msg = struct.pack("Q", len(buffer))
-                                # pack the index
-                                msg = msg + struct.pack("Q", i)
-                                msg = msg + buffer
-                                # pack the message
-                                buffs.append(msg)
-                                i = i+1
-                        for buff in buffs:
-                            client_socket.sendto(buff, (host_ip, port))
+                        for x_coord, y_coord in ranges:
+                            temp = cap[y_coord[0]:y_coord[1], x_coord[0]:x_coord[1]]
+                            self.process_chunk(client_socket, i, temp)
+                            i = i+1
 
+                        if count_time < 10:
+                            count_time += 1
+                        else:
+                            end = time.time()
+                            fps = math.trunc(count_time / (end - start))
+                            print(fps)
+                            count_time = 0
+                            start = end
 
         except KeyboardInterrupt:
             pass
+
+        finally:
+            self.FULL_STOP = 1
+
+    def process_chunk(self, client_socket, i, temp):
+        ret_j, buffer = cv2.imencode(".jpg", temp)
+        buffer = buffer.tobytes()
+        # pack the size
+        msg = struct.pack("Q", len(buffer))
+        # pack the index
+        msg = msg + struct.pack("Q", i)
+        msg = msg + buffer
+        client_socket.sendto(msg, (self.EXTERNAL, self.PORT))
 
     def run(self):
         try:
@@ -129,6 +143,7 @@ class Eyeball:
         finally:
             self.client_socket.close()
 
+
 # Example usage:
 if __name__ == "__main__":
     config = {
@@ -138,10 +153,10 @@ if __name__ == "__main__":
         'TIME_OUT': 10
     }
     external_interface = {
-        'External': '192.168.10.203'  # Change to the desired external interface IP
+        'EXTERNAL': '192.168.10.203'  # Change to the desired external interface IP
     }
 
 
-eyeball = Eyeball(config, external_interface)
+#eyeball = Eyeball(config, external_interface)
 #eyeball.run()
-eyeball.get_video()
+#eyeball.get_video()
