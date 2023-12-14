@@ -235,12 +235,9 @@ if __name__ == "__main__":
     config = {
         'LOCALHOST': '127.0.0.1',
         'PORT': 9898,
-        'BUFFER_SIZE': 1024*4,
+        'BUFFER_SIZE': 1024*40,
         'TIME_OUT': 300,
         'SENSOR_COUNT': 3,
-        'External': '192.168.10.203'  # Change to '127.0.0.1' or other IP if needed
+        'External': '192.168.0.10'  # Change to '127.0.0.1' or other IP if needed
     }
 
-#eyeballs = VisualCortex(config)
-#eyeballs.run()
-#eyeballs.get_video_stream()
