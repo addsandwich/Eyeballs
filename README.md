@@ -59,8 +59,25 @@ The `Eyeballs` class manages video transfer functionalities and remote video sol
 #### `get_local_setup(self)`
 - **Description:** Returns the local setup configuration stored in the Eyeballs class.
 
-## Example Usage
+## Example Usage Class creation
 
 ```python
-if __name__ == "__main__":
-    eyeballs = Eyeballs()
+
+eyeballs_instance = Eyeballs('./servers.yaml')
+```
+
+## Example Usage VisualCortex(The computer without the camera) 
+
+```python
+
+vc = eyeballs_instance.get_cortex(0)
+vc.get_video_stream()
+```
+
+## Example Usage Eyeball(The computer with the camera) 
+
+```python
+
+eye = eyeballs_instance.get_eyeball(0)
+eye.get_video()
+```
