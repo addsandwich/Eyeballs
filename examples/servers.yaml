@@ -9,7 +9,7 @@ servers:
     V_BUFFER_SIZE: 40960
     TIME_OUT: 300
     SENSOR_COUNT: 3
-    EXTERNAL: 192.168.10.203
+    EXTERNAL: 192.168.0.10
 
 
 #  server_node_1:
@@ -25,6 +25,6 @@ local:
   # modes can be cortex or eyeball
   MODE: cortex
   # if eyeball, out address(network ip) is required
-  OUTADDR: 192.168.10.203
+  OUTADDR: 192.168.0.10
 
 
