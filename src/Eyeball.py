@@ -146,7 +146,7 @@ class Eyeball:
             self.client_socket.close()
 
 
-# Example usage:
+
 if __name__ == "__main__":
     config = {
         'LOCALHOST': '127.0.0.1',
@@ -155,10 +155,5 @@ if __name__ == "__main__":
         'TIME_OUT': 10
     }
     external_interface = {
-        'EXTERNAL': '192.168.10.203'  # Change to the desired external interface IP
+        'EXTERNAL': '192.168.0.10'  # Change to the desired external interface IP
     }
-
-
-#eyeball = Eyeball(config, external_interface)
-#eyeball.run()
-#eyeball.get_video()
