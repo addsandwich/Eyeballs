@@ -20,6 +20,10 @@ The `Eyeballs` module facilitates an easier method for video transfer by providi
 - [OpenCV](https://github.com/opencv/opencv)
 - [PyYAML](https://github.com/yaml/pyyaml)
 
+### Requirements
+- **Python**: Tested stable on Python versions 3.11.5 - 3.11.6.
+- **OpenCV**: Tested with OpenCV-contrib-python versions 4.5.4.58 to 4.6.0.66.
+
 ## Eyeballs Class
 
 The `Eyeballs` class manages video transfer functionalities and remote video solutions. Below are the methods available within this class:
