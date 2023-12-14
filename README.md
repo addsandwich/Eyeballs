@@ -1,5 +1,14 @@
 # Eyeballs Introduction 
-A small python wrapper to openCV to help facilitate video transfer for robots.
+A small python wrapper to openCV to help facilitate video transfer for robots. This Library is very far from fully released. Consider it in highly early alpha stage. Not all of the functionality is fully implemented. Currently only the most basic of video transfer is online.
+
+# TODO: 12-13-2023
+- Clean up testing artifacts and fully stitch the front end code to the back end.
+- Gather full required version info
+- Enable C2 channel for recovery. Basic implementation is created in the run functions however the commands are not flushed out
+- Enable users to read the image buffers. This will likely be the priority and will be done by accessing the not implemented 'read()' function
+- The read function will first become usable on the VisualCortex and will be later made accessible on the Eyeball
+- Need to remove the temporary testing hardcode for modular usage and multi-instance
+- Finish threading implementation. This is partially complete.
 
 # Eyeballs Module API Documentation
 
