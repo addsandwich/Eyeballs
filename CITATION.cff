@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Watson"
+  given-names: "Christopher"
+title: "Eyeballs"
+version: 0.1.0
+date-released: 12-13-2023
+url: "https://github.com/addsandwich/Eyeballs"
